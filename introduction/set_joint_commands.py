@@ -18,7 +18,7 @@ class MyAgent(SparkAgent):
         
         # YOUR CODE HERE
 	action.stiffness['LShoulderPitch'] = 0
-	action.speed['HeadYaw'] = 0.3
+	action.speed['HeadYaw'] = 0.1
 	
         return action
 
