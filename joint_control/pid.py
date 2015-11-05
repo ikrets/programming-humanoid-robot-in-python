@@ -30,7 +30,7 @@ class PIDController(object):
         @param delay: delay in number of steps
         '''
         self.dt = dt
-        self.u = np.zeros(size)
+        #self.u = np.zeros(size)
         self.e1 = np.zeros(size)
         self.e2 = np.zeros(size)
         # ADJUST PARAMETERS BELOW
@@ -39,12 +39,14 @@ class PIDController(object):
         self.Ki = 0
         self.Kd = 0
         self.y = deque(np.zeros(size), maxlen=delay + 1)
+        self.u = deque(np.zeros(size), maxlen=delay + 1)
 
     def set_delay(self, delay):
         '''
         @param delay: delay in number of steps
         '''
         self.y = deque(self.y, delay + 1)
+        self.u = deque(self.u, maxlen=delay + 1)
 
     def control(self, target, sensor):
         '''apply PID control
@@ -52,18 +54,28 @@ class PIDController(object):
         @param sensor: current values from sensor
         @return control signal
         '''
-        # YOUR CODE HERE
-        delay = self.y.maxlen - 1
+        # prediction calculation
+        prediction = sensor
+        for v in self.u: 
+	  prediction += v * self.dt #account for already sent signals
+        
+        
+        #prediction error calculation
+        self.y.append(prediction) #queue prediction without error correction so it won't accumulate
         predictionError = sensor - self.y.popleft()
-        prediction = sensor + (self.u * self.dt * delay)
-        self.y.append(prediction)
         prediction += predictionError
+        
+        # speed calculation
         e = target - prediction
-	self.u = self.u + (self.Kp + self.Ki * self.dt + self.Kd / self.dt) * e - (self.Kp + 2*self.Kd/self.dt) * self.e1 + (self.Kd/self.dt)*self.e2
+        
+        #notice that while self.u is a list of vectors, u is just one vector
+	u = self.u.popleft() + (self.Kp + self.Ki * self.dt + self.Kd / self.dt) * e - (self.Kp + 2*self.Kd/self.dt) * self.e1 + (self.Kd/self.dt)*self.e2
+	
+	self.u.append(u) # queing speed for better prediction with delay > 1
 	self.e2 = self.e1
 	self.e1 = e
 	
-        return self.u
+        return u
 
 
 class PIDAgent(SparkAgent):
