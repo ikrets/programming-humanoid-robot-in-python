@@ -53,7 +53,12 @@ class PIDController(object):
         @return control signal
         '''
         # YOUR CODE HERE
-        e = target - sensor
+        delay = self.y.maxlen - 1
+        predictionError = sensor - self.y.popleft()
+        prediction = sensor + (self.u * self.dt * delay)
+        self.y.append(prediction)
+        prediction += predictionError
+        e = target - prediction
 	self.u = self.u + (self.Kp + self.Ki * self.dt + self.Kd / self.dt) * e - (self.Kp + 2*self.Kd/self.dt) * self.e1 + (self.Kd/self.dt)*self.e2
 	self.e2 = self.e1
 	self.e1 = e
