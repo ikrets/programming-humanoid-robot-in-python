@@ -38,6 +38,7 @@ class PIDController(object):
         self.Kp = 30
         self.Ki = 0
         self.Kd = 0
+        self.pe = deque(np.zeros(size), maxlen=delay + 1) #queue for old prediction errors (to have a better influence on new prediction)
         self.y = deque(np.zeros(size), maxlen=delay + 1) #queue for predictions (to calculate prediction error)
         self.u = deque(np.zeros(size), maxlen=delay + 1) #queue for sent signals (to account for sent signals in prediction with delay > 1)
 
@@ -45,14 +46,15 @@ class PIDController(object):
         '''
         @param delay: delay in number of steps
         '''
+        self.pe = deque(self.pe, delay + 1)
+        while len(self.pe) < delay + 1 :
+	  self.pe.appendleft(self.pe[0])
         self.y = deque(self.y, delay + 1)
         while len(self.y) < delay + 1 :
 	  self.y.appendleft(self.y[0])
-	  #yself.y.append(self.y[-1])
         self.u = deque(self.u, delay + 1)
         while len(self.u) < delay + 1 :
 	  self.u.appendleft(self.u[0])
-	  #self.u.append(np.zeros(size))
 
 
     def control(self, target, sensor):
@@ -74,7 +76,12 @@ class PIDController(object):
         if(self.y):
 	  predictionError = sensor - self.y[0] #get difference between prediction and sensordata
         self.y.append(prediction) #queue prediction without error correction so it won't accumulate
-        prediction += predictionError/(len(self.y) + 1)
+        self.pe.popleft() #delete oldest prediciton error
+        self.pe.append(predictionError)
+        i = 1
+        for pe in self.pe:
+	  prediction += pe * (1/(i + 1))
+	  i += 1
         
         # speed calculation
         e = target - prediction
