@@ -19,6 +19,7 @@ from collections import deque
 from spark_agent import SparkAgent, JOINT_CMD_NAMES
 
 
+
 class PIDController(object):
     '''a discretized PID controller, it controls an array of servos,
        e.g. input is an array and output is also an array
@@ -30,7 +31,6 @@ class PIDController(object):
         @param delay: delay in number of steps
         '''
         self.dt = dt
-        #self.u = np.zeros(size)
         self.e1 = np.zeros(size)
         self.e2 = np.zeros(size)
         # ADJUST PARAMETERS BELOW
@@ -38,15 +38,22 @@ class PIDController(object):
         self.Kp = 30
         self.Ki = 0
         self.Kd = 0
-        self.y = deque(np.zeros(size), maxlen=delay + 1)
-        self.u = deque(np.zeros(size), maxlen=delay + 1)
+        self.y = deque(np.zeros(size), maxlen=delay + 1) #queue for predictions (to calculate prediction error)
+        self.u = deque(np.zeros(size), maxlen=delay + 1) #queue for sent signals (to account for sent signals in prediction with delay > 1)
 
-    def set_delay(self, delay):
+    def set_delay(self, delay, size):
         '''
         @param delay: delay in number of steps
         '''
         self.y = deque(self.y, delay + 1)
-        self.u = deque(self.u, maxlen=delay + 1)
+        while len(self.y) < delay + 1 :
+	  self.y.appendleft(self.y[0])
+	  #yself.y.append(self.y[-1])
+        self.u = deque(self.u, delay + 1)
+        while len(self.u) < delay + 1 :
+	  self.u.appendleft(self.u[0])
+	  #self.u.append(np.zeros(size))
+
 
     def control(self, target, sensor):
         '''apply PID control
@@ -56,25 +63,28 @@ class PIDController(object):
         '''
         # prediction calculation
         prediction = sensor
+        vOld = self.u.popleft() #ignore the oldest signal for prediction calculation
         for v in self.u: 
 	  prediction += v * self.dt #account for already sent signals
-        
+        self.u.appendleft(vOld)
         
         #prediction error calculation
+        self.y.popleft() #delete oldest prediciton
+        predictionError = 0
+        if(self.y):
+	  predictionError = sensor - self.y[0] #get difference between prediction and sensordata
         self.y.append(prediction) #queue prediction without error correction so it won't accumulate
-        predictionError = sensor - self.y.popleft()
-        prediction += predictionError
+        prediction += predictionError/(len(self.y) + 1)
         
         # speed calculation
         e = target - prediction
         
         #notice that while self.u is a list of vectors, u is just one vector
-	u = self.u.popleft() + (self.Kp + self.Ki * self.dt + self.Kd / self.dt) * e - (self.Kp + 2*self.Kd/self.dt) * self.e1 + (self.Kd/self.dt)*self.e2
-	
-	self.u.append(u) # queing speed for better prediction with delay > 1
+	u = self.u[-1] + (self.Kp + self.Ki * self.dt + self.Kd / self.dt) * e - (self.Kp + 2*self.Kd/self.dt) * self.e1 + (self.Kd/self.dt) * self.e2
+	self.u.popleft() #delete oldest signal
+	self.u.append(u) # queing sent signal (speed) for better prediction with delays > 1
 	self.e2 = self.e1
 	self.e1 = e
-	
         return u
 
 
