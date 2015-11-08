@@ -24,14 +24,13 @@ from pid import PIDAgent
 from keyframes import hello
 from keyframes import wipe_forehead
 from keyframes import leftBackToStand
-from math import fmod
 import numpy as np
 import matplotlib.pyplot as plt
 from spark_agent import INVERSED_JOINTS
 
 epsilon = 1e-6 #error margin for x to t conversion
 
-'''
+''' #data structures for debug plotting
 interpolatedPoints = [[],[]]
 keyframePoints = [[],[]]
 testJoint = "LElbowYaw"
@@ -46,7 +45,7 @@ class AngleInterpolationAgent(PIDAgent):
         super(AngleInterpolationAgent, self).__init__(simspark_ip, simspark_port, teamname, player_id, sync_mode)
         self.keyframes = ([], [], [])
         self.myTime = self.perception.time
-        #self.done = 0 # only relevant for plotting
+        #self.done = 0 # only relevant for debug plotting
         
 
     def think(self, perception):
@@ -60,11 +59,11 @@ class AngleInterpolationAgent(PIDAgent):
         # YOUR CODE HERE
         time = self.perception.time - self.myTime
         (names, times, keys) = keyframes
-        i = 0
-        for name in names:
+        
+        for i, name in enumerate(names):
 	  curTimes = times[i]
 	  
-	  if curTimes[-1]<time or time<curTimes[0]:
+	  if curTimes[-1]<time or time<curTimes[0]: #skip if time is not in time frame
 	    '''
 	    #plot interpolated data for testing
 	    if (not self.done) and curTimes[-1]<time:
@@ -93,26 +92,18 @@ class AngleInterpolationAgent(PIDAgent):
 	  x = np.array([p0x,p1x,p2x,p3x])
 	  y = np.array([p0y,p1y,p2y,p3y])
 	  
-	  #getting t value for curTime
+	  #getting t value candidates (solutions for the polynomial) for curTime
 	  coefficientsX = np.dot(bezierMatrix, x)
 	  coefficientsX[0] -= time
 	  candidates = np.polynomial.polynomial.polyroots(coefficientsX)
 	  
-	  #finding correct candidate
+	  #finding correct candidate for t (t has to be in [0,1])
 	  candidates = [x.real for x in candidates if -(epsilon)<=x.real<=1+(epsilon) and x.imag == 0] #error margin uncertain
-	  candidates = np.asarray([(x,np.abs(x-0.5)) for x in candidates],dtype = [("value", float),("distance", float)])
-	  candidates = np.sort(candidates, order="distance")
-	  
-	  t = candidates[0][0]
-	  if t < 0.: #clip values marginally smaller than 0 to 0
-	    t = 0.
-	  if t > 1.: #clip values marginally larger than 1 to 1
-	    t = 1.
-	    
-	  ''' testing t values close to boundaries
-	  if not t:
-	    print "t was empty"
-	  for x in t:
+	   
+	  ''' #testing t values close to boundaries
+	  if not candidates:
+	    print "candidates was empty"
+	  for x in candidates:
 	    if x >1:
 	      f = open("workfile","a+")
 	      f.write("[")
@@ -121,7 +112,19 @@ class AngleInterpolationAgent(PIDAgent):
 	      f.write("]")
 	      f.close()
 	  '''
+	  #solution should be unique but due to error margin solutions actually marginally larger than 1 (or actually marginally smaller than 0) might get chosen
+	  if len(candidates) > 1: # if thats the case, there must also exist a correct solution -> choose the one closer to 0.5
+	  	candidates = np.asarray([(x,np.abs(x-0.5)) for x in candidates],dtype = [("value", float),("distance", float)]) 
+	  	candidates = np.sort(candidates, order="distance")
+	  	t = candidates[0][0]
+	  else: #if there's only one solution it must be the right one
+	  	t = candidates[0]
 	  
+	  if t < 0.: #clip values marginally smaller than 0 to 0
+	    t = 0.
+	  if t > 1.: #clip values marginally larger than 1 to 1
+	    t = 1.
+	    
 	  #getting y values
 	  coefficientsY = np.dot(bezierMatrix, y)
 	  result = np.dot(np.array([1, t, t**2, t**3]),coefficientsY)
@@ -140,8 +143,6 @@ class AngleInterpolationAgent(PIDAgent):
 	    keyframePoints[0].append(p3x)
 	    keyframePoints[1].append(p3y)
 	  '''
-	  
-	  i += 1
         
         return target_joints
 
