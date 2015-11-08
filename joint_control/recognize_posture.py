@@ -41,12 +41,13 @@ class PostureRecognitionAgent(AngleInterpolationAgent):
         data[1] = perception.imu[1]
         i = 2
         for feature in featureNames[i:]:
-	        data[i] = perception.joint[feature]
-	        i += 1
+	  data[i] = perception.joint[feature]
+	  i += 1
         
-       
         prediction = self.posture_classifier.predict(data)
-        return classes[prediction[0]]
+        posture = classes[prediction[0]]
+        print posture
+        return posture
 
 if __name__ == '__main__':
     agent = PostureRecognitionAgent()
