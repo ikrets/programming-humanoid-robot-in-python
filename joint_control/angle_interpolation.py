@@ -128,10 +128,7 @@ class AngleInterpolationAgent(PIDAgent):
 	  #getting y values
 	  coefficientsY = np.dot(bezierMatrix, y)
 	  result = np.dot(np.array([1, t, t**2, t**3]),coefficientsY)
-	  if name in INVERSED_JOINTS:
-	    target_joints[name] = -result
-	  else:
-	    target_joints[name] = result
+	  target_joints[name] = result
 	  
 	  '''
 	  #collecting plot data

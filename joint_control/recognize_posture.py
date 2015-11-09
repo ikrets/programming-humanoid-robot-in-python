@@ -17,7 +17,6 @@ import numpy as np
 import pickle
 from sklearn import svm
 featureNames = ['AngleX', 'AngleY', 'LHipYawPitch', 'LHipRoll', 'LHipPitch', 'LKneePitch', 'RHipYawPitch', 'RHipRoll', 'RHipPitch', 'RKneePitch']
-classes = ['Knee', 'Back', 'Right', 'Crouch', 'Sit', 'Belly', 'StandInit', 'Stand', 'HeadBack', 'Frog', 'Left']
 ROBOT_POSE_CLF = 'robot_pose.pkl'
 class PostureRecognitionAgent(AngleInterpolationAgent):
     def __init__(self, simspark_ip='localhost',
@@ -44,8 +43,7 @@ class PostureRecognitionAgent(AngleInterpolationAgent):
 	  data[i] = perception.joint[feature]
 	  i += 1
         
-        prediction = self.posture_classifier.predict(data)
-        posture = classes[prediction[0]]
+        posture = self.posture_classifier.predict(data)
         print posture
         return posture
 
