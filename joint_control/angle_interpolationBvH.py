@@ -25,8 +25,13 @@ from keyframes import hello
 from keyframes import wipe_forehead
 from keyframes import leftBackToStand
 import numpy as np
+import matplotlib.pyplot as plt
 
 epsilon = 1e-6 #error margin for x to t conversion
+
+
+
+
 
 class AngleInterpolationAgent(PIDAgent):
     def __init__(self, simspark_ip='localhost',
@@ -47,11 +52,23 @@ class AngleInterpolationAgent(PIDAgent):
 
     def set_keyframes(self, keyframes, interrupt=0):
 	if self.keyframeDone or interrupt:
+	  print "starting new keyframe"
 	  self.keyframeStartTime  = self.perception.time
 	  self.keyframes = keyframes
 	  self.keyframeDone = 0
 
-    def angle_interpolation(self, keyframes, perception):
+
+    def cubic_Hermite(self,x,y):
+	hermiteMatrix = np.array([
+	[x[0]**3,x[0]**2,x[0],1.],
+	[x[1]**3,x[1]**2,x[1],1.],
+	[3*x[0]**2,2*x[0],1.,0.],
+	[3*x[1]**2,2*x[1],1.,0.]
+	])
+	coefficients = np.linalg.solve(hermiteMatrix, y)
+	return np.poly1d(coefficients)
+
+    def angle_interpolation(self, keyframes, perception, bezier=1):
         target_joints = {}
         
         # YOUR CODE HERE
@@ -83,38 +100,54 @@ class AngleInterpolationAgent(PIDAgent):
 	  (p3x, p3y) = (curTimes[eIndex], ekey[0])
 	  (p2x, p2y) = (p3x + ekey[1][1], p3y + ekey[1][2])
 	  
-	  #calculating bezier polynomial as described in http://pomax.github.io/bezierinfo/
-	  bezierMatrix = np.array([[1,0,0,0],[-3,3,0,0],[3,-6,3,0],[-1,3,-3,1]])
-	  x = np.array([p0x,p1x,p2x,p3x])
-	  y = np.array([p0y,p1y,p2y,p3y])
-      
-	  #getting t value candidates (solutions for the polynomial) for curTime
-	  coefficientsX = np.dot(bezierMatrix, x)
-	  coefficientsX[0] -= time
-	  candidates = np.polynomial.polynomial.polyroots(coefficientsX)
-	  
-	  #finding correct candidate for t (t has to be in [0,1])
-	  candidates = [x.real for x in candidates if -(epsilon)<=x.real<=1+(epsilon) and x.imag == 0] #error margin uncertain
-	  
-	  
-	  #solution should be unique but due to error margin solutions actually marginally larger than 1 (or actually marginally smaller than 0) might get chosen
-	  if len(candidates) > 1: # if thats the case, there must also exist a correct solution -> choose the one closer to 0.5
-		candidates = np.asarray([(x,np.abs(x-0.5)) for x in candidates],dtype = [("value", float),("distance", float)]) 
-		candidates = np.sort(candidates, order="distance")
-		t = candidates[0][0]
-	  else: #if there's only one solution it must be the right one
-		t = candidates[0]
-	  
-	  if t < 0.: #clip values marginally smaller than 0 to 0
-	    t = 0.
-	  if t > 1.: #clip values marginally larger than 1 to 1
-	    t = 1.
+	  #using bezier for interpolation
+	  if(bezier):
+	    #calculating bezier polynomial as described in http://pomax.github.io/bezierinfo/
+	    bezierMatrix = np.array([[1,0,0,0],[-3,3,0,0],[3,-6,3,0],[-1,3,-3,1]])
+	    x = np.array([p0x,p1x,p2x,p3x])
+	    y = np.array([p0y,p1y,p2y,p3y])
+	
+	    #getting t value candidates (solutions for the polynomial) for curTime
+	    coefficientsX = np.dot(bezierMatrix, x)
+	    coefficientsX[0] -= time
+	    candidates = np.polynomial.polynomial.polyroots(coefficientsX)
 	    
-	  #getting y values
-	  coefficientsY = np.dot(bezierMatrix, y)
-	  result = np.dot(np.array([1, t, t**2, t**3]),coefficientsY)
-	  target_joints[name] = result
-	 
+	    #finding correct candidate for t (t has to be in [0,1])
+	    candidates = [x.real for x in candidates if -(epsilon)<=x.real<=1+(epsilon) and x.imag == 0] #error margin uncertain
+	    
+	    
+	    #solution should be unique but due to error margin solutions actually marginally larger than 1 (or actually marginally smaller than 0) might get chosen
+	    if len(candidates) > 1: # if thats the case, there must also exist a correct solution -> choose the one closer to 0.5
+		  candidates = np.asarray([(x,np.abs(x-0.5)) for x in candidates],dtype = [("value", float),("distance", float)]) 
+		  candidates = np.sort(candidates, order="distance")
+		  t = candidates[0][0]
+	    else: #if there's only one solution it must be the right one
+		  t = candidates[0]
+	    
+	    if t < 0.: #clip values marginally smaller than 0 to 0
+	      t = 0.
+	    if t > 1.: #clip values marginally larger than 1 to 1
+	      t = 1.
+	      
+	    #getting y values
+	    coefficientsY = np.dot(bezierMatrix, y)
+	    result = np.dot(np.array([1, t, t**2, t**3]),coefficientsY)
+	    target_joints[name] = result
+	    
+	  #using cubic Hermite for interpolation (!taken from daniel, only used for comparison in test!)
+	  else:
+	    (p1bx,p1by) = (p0x + skey[1][1], p0y + skey[1][2]) #handle bar end to the left of p0
+	    dy_0 = (p1y - p1by) / (p1x - p1bx) #all assuming that both handle bars have an actual offset, i.e. the denominator is !=0
+	    (p2bx, p2by) = (p3x + ekey[2][1], p3y + ekey[2][2]) # handle bar end to the right of p3
+	    dy_3 = (p2by - p2y) / (p2bx - p2x) 
+	    x = np.array([p0x,p3x])
+	    y = np.array([p0y,p3y,dy_0,dy_3])
+	    polynomial = self.cubic_Hermite(x,y)
+	    #getting y value
+	    result = polynomial(time)
+	    target_joints[name] = result
+	    
+	  
         
         self.keyframeDone = done #when no joint gets an update, the keyframe was completely executed
         

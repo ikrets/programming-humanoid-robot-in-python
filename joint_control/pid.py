@@ -35,7 +35,7 @@ class PIDController(object):
         self.e2 = np.zeros(size)
         # ADJUST PARAMETERS BELOW
         delay = 1
-        self.Kp = 77
+        self.Kp = 70
         self.Ki = 0
         self.Kd = 0
         self.t = deque([np.zeros(size)], maxlen=delay + 1) # queue for old targets
@@ -71,7 +71,7 @@ class PIDController(object):
 	  prediction += (v * self.dt) #account for already sent signals
         self.u.appendleft(vOld)
         
-         # does not work!
+        ''' # does not work!
         #prediction error calculation
         self.y.popleft() #delete oldest prediciton
         self.t.popleft() #delete oldest target
@@ -82,11 +82,10 @@ class PIDController(object):
 	  ae = self.t[0] - sensor # get actual error for this sensor data
 	  ep[ep == 0] = 1
 	  predictionCorrection = ae - ep
-	  
         self.y.append(prediction) #queue prediction without error correction so it won't accumulate
         self.t.append(target)
         prediction *= predictionCorrection
-        
+        '''  
         
         # speed calculation
         e = target - prediction
