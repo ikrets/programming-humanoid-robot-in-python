@@ -30,11 +30,11 @@ from spark_agent import INVERSED_JOINTS
 
 epsilon = 1e-6 #error margin for x to t conversion
 
-''' #data structures for debug plotting
+#data structures for debug plotting
 interpolatedPoints = [[],[]]
 keyframePoints = [[],[]]
 testJoint = "LElbowYaw"
-'''
+
 
 class AngleInterpolationAgent(PIDAgent):
     def __init__(self, simspark_ip='localhost',
@@ -45,15 +45,17 @@ class AngleInterpolationAgent(PIDAgent):
         super(AngleInterpolationAgent, self).__init__(simspark_ip, simspark_port, teamname, player_id, sync_mode)
         self.keyframes = ([], [], [])
         self.myTime = self.perception.time
-        #self.done = 0 # only relevant for debug plotting
+        self.done = 0 # only relevant for debug plotting
         
 
     def think(self, perception):
-        target_joints = self.angle_interpolation(self.keyframes, perception)
+        target_joints = self.angle_interpolation(self.keyframes)
         self.target_joints.update(target_joints)
+        print "Im Player number:", self.player_id
         return super(AngleInterpolationAgent, self).think(perception)
+      
 
-    def angle_interpolation(self, keyframes, perception):
+    def angle_interpolation(self, keyframes):
         target_joints = {}
         
         # YOUR CODE HERE
@@ -64,7 +66,7 @@ class AngleInterpolationAgent(PIDAgent):
 	  curTimes = times[i]
 	  
 	  if curTimes[-1]<time or time<curTimes[0]: #skip if time is not in time frame
-	    '''
+	    
 	    #plot interpolated data for testing
 	    if (not self.done) and curTimes[-1]<time:
 	      self.done = 1
@@ -72,7 +74,7 @@ class AngleInterpolationAgent(PIDAgent):
 	      plt.plot(keyframePoints[0],keyframePoints[1],"bo")
 	      plt.title(testJoint)
 	      plt.show()
-	    '''
+	    
 	    continue
 	  
 	  #getting relevant Indices
@@ -130,7 +132,7 @@ class AngleInterpolationAgent(PIDAgent):
 	  result = np.dot(np.array([1, t, t**2, t**3]),coefficientsY)
 	  target_joints[name] = result
 	  
-	  '''
+	  
 	  #collecting plot data
 	  if name == testJoint:
 	    interpolatedPoints[0].append(time)
@@ -139,11 +141,11 @@ class AngleInterpolationAgent(PIDAgent):
 	    keyframePoints[1].append(p0y)
 	    keyframePoints[0].append(p3x)
 	    keyframePoints[1].append(p3y)
-	  '''
+	  
         
         return target_joints
 
 if __name__ == '__main__':
     agent = AngleInterpolationAgent()
-    agent.keyframes = hello()  # CHANGE DIFFERENT KEYFRAMES
+    agent.keyframes = leftBackToStand()  # CHANGE DIFFERENT KEYFRAMES
     agent.run()

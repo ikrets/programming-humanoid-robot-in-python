@@ -71,7 +71,7 @@ class PIDController(object):
 	  prediction += (v * self.dt) #account for already sent signals
         self.u.appendleft(vOld)
         
-        ''' # does not work!
+         # does not work!
         #prediction error calculation
         self.y.popleft() #delete oldest prediciton
         self.t.popleft() #delete oldest target
@@ -80,14 +80,13 @@ class PIDController(object):
         if(self.y):
 	  ep = self.t[0] - self.y[0] #get error prediction for this sensor data
 	  ae = self.t[0] - sensor # get actual error for this sensor data
-	  predictionCorrection = abs(ae - ep) * np.sign(ae)
 	  ep[ep == 0] = 1
-	  predictionCorrection /= ep
+	  predictionCorrection = ae - ep
 	  
         self.y.append(prediction) #queue prediction without error correction so it won't accumulate
         self.t.append(target)
         prediction *= predictionCorrection
-        ''' 
+        
         
         # speed calculation
         e = target - prediction

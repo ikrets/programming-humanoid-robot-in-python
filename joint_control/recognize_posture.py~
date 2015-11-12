@@ -13,14 +13,13 @@
 from angle_interpolation import AngleInterpolationAgent
 from keyframes import hello
 from keyframes import leftBackToStand
-import matplotlib.pyplot as plt
 import numpy as np
 import pickle
 from sklearn import svm
-from math import pi
 featureNames = ['AngleX', 'AngleY', 'LHipYawPitch', 'LHipRoll', 'LHipPitch', 'LKneePitch', 'RHipYawPitch', 'RHipRoll', 'RHipPitch', 'RKneePitch']
+classes = ['Knee', 'Back', 'Right', 'Crouch', 'Sit', 'Belly', 'StandInit', 'Stand', 'HeadBack', 'Frog', 'Left']
 ROBOT_POSE_CLF = 'robot_pose.pkl'
-lass PostureRecognitionAgent(AngleInterpolationAgent):
+class PostureRecognitionAgent(AngleInterpolationAgent):
     def __init__(self, simspark_ip='localhost',
                  simspark_port=3100,
                  teamname='DAInamite',
@@ -45,8 +44,8 @@ lass PostureRecognitionAgent(AngleInterpolationAgent):
 	  data[i] = perception.joint[feature]
 	  i += 1
         
-	  
-        posture = self.posture_classifier.predict(data)
+        prediction = self.posture_classifier.predict(data)
+        posture = classes[prediction[0]]
         print posture
         return posture
 
