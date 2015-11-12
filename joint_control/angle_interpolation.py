@@ -30,11 +30,9 @@ from spark_agent import INVERSED_JOINTS
 
 epsilon = 1e-6 #error margin for x to t conversion
 
-''' #data structures for debug plotting
-interpolatedPoints = [[],[]]
-keyframePoints = [[],[]]
-testJoint = "LElbowYaw"
-'''
+
+testJoint = 'RHipRoll'
+
 
 class AngleInterpolationAgent(PIDAgent):
     def __init__(self, simspark_ip='localhost',
@@ -44,35 +42,43 @@ class AngleInterpolationAgent(PIDAgent):
                  sync_mode=True):
         super(AngleInterpolationAgent, self).__init__(simspark_ip, simspark_port, teamname, player_id, sync_mode)
         self.keyframes = ([], [], [])
-        self.myTime = self.perception.time
-        #self.done = 0 # only relevant for debug plotting
-        
+        self.keyframeStartTime = 0
+        self.keyframeDone = 1   
+        '''#TESTING data structures
+	self.interpolatedPoints = [[],[]]
+	self.keyframePoints = [[],[]]
+	'''
 
     def think(self, perception):
-        target_joints = self.angle_interpolation(self.keyframes, perception)
-        self.target_joints.update(target_joints)
+	if not self.keyframeDone:#skip if keyframe is done
+	  target_joints = self.angle_interpolation(self.keyframes, perception)
+	  self.target_joints.update(target_joints)
         return super(AngleInterpolationAgent, self).think(perception)
+
+    def set_keyframes(self, keyframes, interrupt=0):
+	if self.keyframeDone or interrupt:
+	  self.keyframeStartTime  = self.perception.time
+	  self.keyframes = keyframes
+	  self.keyframeDone = 0
 
     def angle_interpolation(self, keyframes, perception):
         target_joints = {}
         
         # YOUR CODE HERE
-        time = self.perception.time - self.myTime
+        
+        #get relative time
+        time = self.perception.time - self.keyframeStartTime
         (names, times, keys) = keyframes
         
+        done = 1 # stays 1 if all joint are done
         for i, name in enumerate(names):
 	  curTimes = times[i]
 	  
-	  if curTimes[-1]<time or time<curTimes[0]: #skip if time is not in time frame
-	    '''
-	    #plot interpolated data for testing
-	    if (not self.done) and curTimes[-1]<time:
-	      self.done = 1
-	      plt.plot(interpolatedPoints[0],interpolatedPoints[1],"r")
-	      plt.plot(keyframePoints[0],keyframePoints[1],"bo")
-	      plt.title(testJoint)
-	      plt.show()
-	    '''
+	   #skip if time is not in time frame
+	  if curTimes[-1] < time:
+	    continue
+	  done = 0
+	  if time < curTimes[0]:
 	    continue
 	  
 	  #getting relevant Indices
@@ -100,7 +106,7 @@ class AngleInterpolationAgent(PIDAgent):
 	  #finding correct candidate for t (t has to be in [0,1])
 	  candidates = [x.real for x in candidates if -(epsilon)<=x.real<=1+(epsilon) and x.imag == 0] #error margin uncertain
 	   
-	  ''' #testing t values close to boundaries
+	  ''' #TESTING t values close to boundaries
 	  if not candidates:
 	    print "candidates was empty"
 	  for x in candidates:
@@ -112,6 +118,7 @@ class AngleInterpolationAgent(PIDAgent):
 	      f.write("]")
 	      f.close()
 	  '''
+	  
 	  #solution should be unique but due to error margin solutions actually marginally larger than 1 (or actually marginally smaller than 0) might get chosen
 	  if len(candidates) > 1: # if thats the case, there must also exist a correct solution -> choose the one closer to 0.5
 	  	candidates = np.asarray([(x,np.abs(x-0.5)) for x in candidates],dtype = [("value", float),("distance", float)]) 
@@ -130,20 +137,35 @@ class AngleInterpolationAgent(PIDAgent):
 	  result = np.dot(np.array([1, t, t**2, t**3]),coefficientsY)
 	  target_joints[name] = result
 	  
-	  '''
-	  #collecting plot data
+	  ''' #TESTING collecting plot data
 	  if name == testJoint:
-	    interpolatedPoints[0].append(time)
-	    interpolatedPoints[1].append(result)
-	    keyframePoints[0].append(p0x)
-	    keyframePoints[1].append(p0y)
-	    keyframePoints[0].append(p3x)
-	    keyframePoints[1].append(p3y)
+	    self.interpolatedPoints[0].append(time)
+	    self.interpolatedPoints[1].append(result)
+	    self.keyframePoints[0].append(p0x)
+	    self.keyframePoints[1].append(p0y)
+	    self.keyframePoints[0].append(p3x)
+	    self.keyframePoints[1].append(p3y)
 	  '''
+	  
+        
+        self.keyframeDone = done #when no joint gets an update, the keyframe was completely executed
+        
+        ''' #TESTING plotting test data
+        if self.keyframeDone:
+	  plt.plot(self.interpolatedPoints[0],self.interpolatedPoints[1],"r")
+	  plt.plot(self.keyframePoints[0],self.keyframePoints[1],"bo")
+	  plt.title(testJoint)
+	  print names
+	  plt.show()
+	  self.interpolatedPoints = [[],[]]
+	  self.keyframePoints = [[],[]]
+	'''
         
         return target_joints
 
+
+
 if __name__ == '__main__':
     agent = AngleInterpolationAgent()
-    agent.keyframes = hello()  # CHANGE DIFFERENT KEYFRAMES
+    agent.set_keyframes(hello())  # CHANGE DIFFERENT KEYFRAMES
     agent.run()

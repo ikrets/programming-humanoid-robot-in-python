@@ -13,14 +13,14 @@
 from angle_interpolation import AngleInterpolationAgent
 from keyframes import hello
 from keyframes import leftBackToStand
-import matplotlib.pyplot as plt
 import numpy as np
 import pickle
 from sklearn import svm
-from math import pi
-featureNames = ['AngleX', 'AngleY', 'LHipYawPitch', 'LHipRoll', 'LHipPitch', 'LKneePitch', 'RHipYawPitch', 'RHipRoll', 'RHipPitch', 'RKneePitch']
+
+featureNames = ['LHipYawPitch', 'LHipRoll', 'LHipPitch', 'LKneePitch', 'RHipYawPitch', 'RHipRoll', 'RHipPitch', 'RKneePitch','AngleX', 'AngleY']
 ROBOT_POSE_CLF = 'robot_pose.pkl'
-lass PostureRecognitionAgent(AngleInterpolationAgent):
+
+class PostureRecognitionAgent(AngleInterpolationAgent):
     def __init__(self, simspark_ip='localhost',
                  simspark_port=3100,
                  teamname='DAInamite',
@@ -37,20 +37,20 @@ lass PostureRecognitionAgent(AngleInterpolationAgent):
     def recognize_posture(self, perception):
         posture = 'unknown'
         # YOUR CODE HERE
-        data = np.empty(len(featureNames))
-        data[0] = perception.imu[0]
-        data[1] = perception.imu[1]
-        i = 2
-        for feature in featureNames[i:]:
-	  data[i] = perception.joint[feature]
-	  i += 1
         
-	  
+        # read data
+        data = np.empty(len(featureNames))
+        data[-2] = perception.imu[0]
+        data[-1] = perception.imu[1]
+        for i, feature in enumerate(featureNames[:-2]):
+	  data[i] = perception.joint[feature]
+        
+        #predict
         posture = self.posture_classifier.predict(data)
-        print posture
+        #print posture
         return posture
 
 if __name__ == '__main__':
     agent = PostureRecognitionAgent()
-    agent.keyframes = leftBackToStand()  # CHANGE DIFFERENT KEYFRAMES
+    agent.set_keyframes(leftBackToStand())  # CHANGE DIFFERENT KEYFRAMES
     agent.run()
