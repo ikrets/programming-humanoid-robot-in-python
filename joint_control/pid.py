@@ -38,20 +38,12 @@ class PIDController(object):
         self.Kp = 70
         self.Ki = 0
         self.Kd = 0
-        self.t = deque([np.zeros(size)], maxlen=delay + 1) # queue for old targets
-        self.y = deque([np.zeros(size)], maxlen=delay + 1) #queue for predictions (to calculate prediction error)
         self.u = deque([np.zeros(size)], maxlen=delay + 1) #queue for sent signals (to account for sent signals in prediction with delay > 1)
 	self.test = np.zeros(size)
     def set_delay(self, delay):
         '''
         @param delay: delay in number of steps
         '''
-        self.t = deque(self.t, delay + 1)
-        while len(self.t) < delay + 1 :
-	  self.t.appendleft(self.t[0])
-        self.y = deque(self.y, delay + 1)
-        while len(self.y) < delay + 1 :
-	  self.y.appendleft(self.y[0])
         self.u = deque(self.u, delay + 1)
         while len(self.u) < delay + 1 :
 	  self.u.appendleft(self.u[0])
@@ -70,22 +62,6 @@ class PIDController(object):
 	  #print v, self.dt
 	  prediction += (v * self.dt) #account for already sent signals
         self.u.appendleft(vOld)
-        
-        ''' # does not work!
-        #prediction error calculation
-        self.y.popleft() #delete oldest prediciton
-        self.t.popleft() #delete oldest target
-        predictionCorrection = 1
-        
-        if(self.y):
-	  ep = self.t[0] - self.y[0] #get error prediction for this sensor data
-	  ae = self.t[0] - sensor # get actual error for this sensor data
-	  ep[ep == 0] = 1
-	  predictionCorrection = ae - ep
-        self.y.append(prediction) #queue prediction without error correction so it won't accumulate
-        self.t.append(target)
-        prediction *= predictionCorrection
-        '''  
         
         # speed calculation
         e = target - prediction
