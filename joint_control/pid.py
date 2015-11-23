@@ -38,7 +38,7 @@ class PIDController(object):
         self.Kp = 70
         self.Ki = 0
         self.Kd = 0
-        self.u = deque([np.zeros(size)], maxlen=delay + 1) #queue for sent signals (to account for sent signals in prediction with delay > 1)
+        self.u = deque(np.zeros(size), maxlen=delay + 1) #queue for sent signals (to account for sent signals in prediction with delay > 1)
 	self.test = np.zeros(size)
     def set_delay(self, delay):
         '''
