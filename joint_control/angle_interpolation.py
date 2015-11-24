@@ -36,6 +36,7 @@ class AngleInterpolationAgent(PIDAgent):
                  sync_mode=True):
         super(AngleInterpolationAgent, self).__init__(simspark_ip, simspark_port, teamname, player_id, sync_mode)
         self.keyframes = ([], [], [])
+        self.keyframeStartPosition = []
         self.keyframeStartTime = 0
         self.keyframeDone = 1 
 
@@ -49,6 +50,17 @@ class AngleInterpolationAgent(PIDAgent):
 	if self.keyframeDone or interrupt:
 	  self.keyframeStartTime  = self.perception.time
 	  self.keyframes = keyframes
+	  #get current position to interpolate before first keyframe
+	  names ,times, keys = keyframes
+	  self.keyframeStartPosition = []
+	  for i, name in enumerate(names):
+	    #distance to first keyframe to calculate handlebar
+	    f_time = times[i][0]
+	    fOffset = keys[i][0][1][1]
+	    if(name in self.perception.joint):
+	      self.keyframeStartPosition.append([self.perception.joint[name], [3, 0, 0], [3, -fOffset, 0]])
+	    else:
+	      self.keyframeStartPosition.append([0, [3, 0, 0], [3, -fOffset, 0]])   
 	  self.keyframeDone = 0
 
     def angle_interpolation(self, keyframes, perception):
@@ -68,16 +80,21 @@ class AngleInterpolationAgent(PIDAgent):
 	  if curTimes[-1] < time:
 	    continue
 	  done = 0
-	  if time < curTimes[0]:
-	    continue
+	  
+	  #get interpolation points
 	  
 	  #getting relevant Indices
 	  eIndex = len([x for x in curTimes if x<time])
-	  sIndex = eIndex - 1
-	  
-	  #get interpolation points
-	  skey = keys[i][sIndex]
-	  (p0x, p0y) = (curTimes[sIndex], skey[0])
+	  if eIndex == 0:
+	    #print i, len(self.keyframeStartPosition)
+	    skey = self.keyframeStartPosition[i]
+	    p0x = 0
+	  else:
+	    sIndex = eIndex - 1
+	    skey = keys[i][sIndex]
+	    p0x = curTimes[sIndex]
+
+	  p0y = skey[0]
 	  (p1x, p1y) = (p0x + skey[2][1], p0y + skey[2][2])
 	  ekey = keys[i][eIndex]
 	  (p3x, p3y) = (curTimes[eIndex], ekey[0])
