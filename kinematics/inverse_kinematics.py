@@ -10,12 +10,48 @@
 '''
 
 
+#using Efficient computation of the jacobian for robot manipulators (Orin and Schrader)
+#and Introduction to Inverse Kinematics with Jacobian Transpose...
+
 from forward_kinematics import ForwardKinematicsAgent
 import numpy as np
+from collections import deque
 
-lambda_factor = 0.001
-margin = 0.05
+lambda_factor = 0.1
+posMargin = 0.01
+angleMargin = 1
+
 class InverseKinematicsAgent(ForwardKinematicsAgent):
+  
+  
+    def getPosition(self, joint_name, transform):
+	
+	#calculate axisOfRotation
+	rotationMatrix = transform[:-1,:-1]
+	#hipyawpitch rotation missing
+	if joint_name in self.xJoints:
+	  axisOfRotation = [1, 0, 0]
+	if joint_name in self.yJoints:
+	  axisOfRotation = [0, 1, 0]
+	if joint_name in self.zJoints:
+	  axisOfRotation = [0, 0, 1]
+	if joint_name == 'LHipYawPitch':
+	  axisOfRotation = [0, np.sin(np.pi/4), np.sin(np.pi/4)]
+	axisOfRotation = np.dot(rotationMatrix, axisOfRotation)
+	
+	#get position
+	coordinates = transform[:,-1][:-1]
+	
+	#return concatenation
+	return (coordinates, axisOfRotation)
+      
+    def getEulerAngles(self, transform):
+	theta_x = np.arctan2(transform[2,1], transform[2,2])
+	theta_y = np.arctan2(-transform[2,0], np.sqrt((transform[2,1] * transform[2,1]) + (transform[2,2] * transform[2,2])))
+	theta_z = np.arctan2(transform[0,1], transform[0,0])
+	
+	return [theta_x, theta_y, theta_z]
+	
     def inverse_kinematics(self, effector_name, transform):
         '''solve the inverse kinematics
 
@@ -23,42 +59,59 @@ class InverseKinematicsAgent(ForwardKinematicsAgent):
         :param transform: 4x4 transform matrix
         :return: list of joint angles
         '''
-        joint_angles = []
+        joint_angles = [] #thetas
         # YOUR CODE HERE
+        
         #getting current angles
 	for joint in self.chains[effector_name]:
 	      joint_angles.append(self.perception.joint[joint])
-        #naivly applying 2d to 3d:
-        #getting target  TODO: currently not caring about angle
-        target = transform[:,-1]
+	print joint_angles
+	#target position
+        t = self.getPosition(self.chains[effector_name][-1], transform)
+        t = np.r_[t[0], self.getEulerAngles(transform)]
+        
+        #starting inversed kinematics loop
         while True:
 	  #running forward_kinematics
-	  
-	  T = [np.identity(4)]
+	  transformations = [np.identity(4)]
+	  p = []
 	  for i, joint in enumerate(self.chains[effector_name]):
                 Tl = self.local_trans(joint, joint_angles[i])
-                T.append(np.dot(T[-1], Tl))
+                transformations.append(np.dot(transformations[-1], Tl))
+                p.append(self.getPosition(joint, transformations[-1]))
+                
 			   
-	  if (np.allclose(target, T, 1, margin)):
+	  #end effectors position
+	  s = p[-1]
+	  if(effector_name == 'Lleg'):
+	    s[0] += np.dot(transformations[-1][:-1,:-1], [0,0,-self.mainLength['FootHeight']])
+	  s = np.r_[s[0], self.getEulerAngles(transformations[-1])]
+	  #get the error
+	  e = t - s
+	  #print s, p[-1]
+	  #stop if close enough
+	  if (np.allclose(e[:-3], 0, 1, posMargin) and np.allclose(e[-3:], 0, 1, angleMargin)):
 	    break
-	  print target - T
-	  #get last column of final joint TODO: currently not caring about angle
-	  Te = T[-1][:,-1]
-	  #getting error towards target
-	  e = target - Te
-	  #getting coordinates for each joint
-	  T = [m[:,-1] for m in T[:-1]]
+	  
+	  #print "error: ", e
+	  
 	  #calculating jacobian matrix
-	  J = Te - T
-	  #filling last row with 1
-	  J[-1,:] = 1
+	  jcolumns = []
+	  for (position, rotAxis) in p:
+	    d_position = np.cross(rotAxis, s[0] - position)
+	    jcolumns.append(np.r_[d_position, rotAxis])
+	  
+	  J = np.column_stack(jcolumns)
+	  
+	  
 	  #calculating pseudoinverse
-	  JI = np.dot(J,np.dot(np.asarray(J).T, J)) 
+	  JI = np.linalg.pinv(J)
 	  #calculating angle correction
 	  d_theta = np.dot((lambda_factor * JI), np.asarray(e).T)
 	  #adding angle correction
-	  joint_angles += d_theta[0] #turn matrix into vector
-	  
+	  joint_angles += d_theta #turn matrix into vector
+	  joint_angles = np.mod(joint_angles, 2*np.pi)
+	print joint_angles
         return joint_angles
 
     def set_transforms(self, effector_name, transform):
@@ -67,14 +120,15 @@ class InverseKinematicsAgent(ForwardKinematicsAgent):
         # YOUR CODE HERE
         angles = self.inverse_kinematics(effector_name, transform)
         for i, joint in enumerate(self.chains[effector_name]):
-	      self.perception.joint[joint] = angles[i]
+	      self.target_joints[joint] = angles[i]
         #self.keyframes = ([], [], [])  # the result joint angles have to fill in
 
 if __name__ == '__main__':
     agent = InverseKinematicsAgent()
     # test inverse kinematics
     T = np.identity(4)
-    T[-1, 1] = 0.05
-    T[-1, 2] = 0.26
+    T[1, -1] = 50.0
+    T[2, -1] = -260.
+    print T
     agent.set_transforms('LLeg', T)
     agent.run()
