@@ -7,6 +7,7 @@ In this exercise you need to know how to get sensor data.
 
 '''
 
+# add PYTHONPATH
 import os
 import sys
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', 'software_installation'))
@@ -19,7 +20,7 @@ class MyAgent(SparkAgent):
         angle = perception.joint['HeadYaw']
         temperature = perception.joint_temperature['HeadYaw']
 
-        print('HeadYaw angle: {} temperature: {}'.format(angle, temperature))
+        print 'HeadYaw angle: ' + str(angle) + ' temperature: ' + str(temperature)
         return super(MyAgent, self).think(perception)
 
 if '__main__' == __name__:
