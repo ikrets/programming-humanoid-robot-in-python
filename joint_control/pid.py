@@ -12,17 +12,26 @@
 # add PYTHONPATH
 import os
 import sys
+
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', 'software_installation'))
 
 import numpy as np
 from collections import deque
 from spark_agent import SparkAgent, JOINT_CMD_NAMES
 
+def wrap_angle(angle):
+    angle = angle % (2 * np.pi)
+    
+    angle += 2 * np.pi * (angle < -np.pi)
+    angle -= 2 * np.pi * (angle > np.pi)
+    
+    return angle
 
 class PIDController(object):
     '''a discretized PID controller, it controls an array of servos,
        e.g. input is an array and output is also an array
     '''
+
     def __init__(self, dt, size):
         '''
         @param dt: step time
@@ -34,11 +43,19 @@ class PIDController(object):
         self.e1 = np.zeros(size)
         self.e2 = np.zeros(size)
         # ADJUST PARAMETERS BELOW
+        
+        # i was not able to find parameters with delay != 0 that would
+        # work better than those
+        # either there is no delay in simulation, or my implementation of
+        # delay is wrong
         delay = 0
-        self.Kp = 0
-        self.Ki = 0
-        self.Kd = 0
+        self.Kp = 37
+        self.Ki = 0.4
+        self.Kd = 0.1
         self.y = deque(np.zeros(size), maxlen=delay + 1)
+
+    def model(self, sensor, u):
+        return sensor + u * self.dt
 
     def set_delay(self, delay):
         '''
@@ -52,7 +69,15 @@ class PIDController(object):
         @param sensor: current values from sensor
         @return control signal
         '''
-        # YOUR CODE HERE
+        y_wave = self.model(sensor, self.u)
+        self.y.append(y_wave)
+        error = target - (sensor + y_wave - self.y[0])
+
+        self.u += (self.Kp + self.Kd / self.dt + self.Ki * self.dt) * error - (
+                2 * self.Kd / self.dt + self.Kp) * self.e1 + self.Kd / self.dt * self.e2
+
+        self.e2 = self.e1
+        self.e1 = error
 
         return self.u
 
@@ -75,9 +100,9 @@ class PIDAgent(SparkAgent):
         perception.joint:   current joints' positions (dict: joint_id -> position (current))
         self.target_joints: target positions (dict: joint_id -> position (target)) '''
         joint_angles = np.asarray(
-            [perception.joint[joint_id]  for joint_id in JOINT_CMD_NAMES])
-        target_angles = np.asarray([self.target_joints.get(joint_id, 
-            perception.joint[joint_id]) for joint_id in JOINT_CMD_NAMES])
+            [perception.joint[joint_id] for joint_id in JOINT_CMD_NAMES])
+        target_angles = np.asarray([self.target_joints.get(joint_id,
+                                                           perception.joint[joint_id]) for joint_id in JOINT_CMD_NAMES])
         u = self.joint_controller.control(target_angles, joint_angles)
         action.speed = dict(zip(JOINT_CMD_NAMES.iterkeys(), u))  # dict: joint_id -> speed
         return action
