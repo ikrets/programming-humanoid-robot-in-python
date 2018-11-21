@@ -22,7 +22,7 @@
 import numpy as np
 import pickle
 from pid import PIDAgent
-from keyframes import hello
+import keyframes
 from bezier_interpolators import BezierInterpolators
 
 
@@ -44,7 +44,6 @@ class AngleInterpolationAgent(PIDAgent):
         self.actions_log = []
 
     def think(self, perception):
-        print(perception.joint['LElbowYaw'], perception.joint['LElbowRoll'])
         target_joints = self.angle_interpolation(perception)
         self.target_joints.update(target_joints)
         self.target_joints_log.append(self.target_joints.copy())
@@ -57,8 +56,7 @@ class AngleInterpolationAgent(PIDAgent):
 
     def set_keyframes(self, keyframes):
         # convert keyframes to bezier sections
-        names, times, keys = keyframes
-        self.interpolators = BezierInterpolators(names, times, keys)
+        self.interpolators = BezierInterpolators(keyframes)
 
     def angle_interpolation(self, perception):
         assert self.interpolators
@@ -75,7 +73,7 @@ class AngleInterpolationAgent(PIDAgent):
 if __name__ == '__main__':
     np.seterr(all='raise')
     agent = AngleInterpolationAgent()
-    agent.set_keyframes(hello())
+    agent.set_keyframes(keyframes.hello())
     agent.start()
 
     agent.thread.join()

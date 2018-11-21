@@ -3,37 +3,33 @@ from bezier_interpolators import BezierInterpolators
 
 
 def test_linear_segment():
-    names = ["foo1", "foo2"]
+    names = ["foo1"]
     times = [[0.5, 1]]
-    keys = [[[1, [3, 0.4, 0.9], [3, 0.6, 1.1]],
-             [2, [3, 0.9, 1.9], [3, 1.1, 2.1]]]]
+    keys = [[[1, [3, 0, 0], [3, 0.1, 0.2]],
+             [2, [3, -0.1, -0.2], [3, 0, 0]]]]
 
-    interpolators = BezierInterpolators(times, keys)
-    assert_allclose(interpolators.compute(0), [0],
-                    err_msg='implicit 0th keypoint')
-    assert_allclose(interpolators.compute(0.5), [1],
-                    err_msg='value in 1st keypoint')
-    assert_allclose(interpolators.compute(1), [2],
-                    err_msg='value in 2nd keypoint')
-    assert_allclose(interpolators.compute(0.75), [1.5],
-                    err_msg='value between 1st and 2nd keypoint')
+    interpolators = BezierInterpolators((names, times, keys))
+    assert_allclose(interpolators.compute(0.5).values(), [1],
+                    err_msg='keypoint 0')
+    assert_allclose(interpolators.compute(1).values(), [2],
+                    err_msg='keypoint 1')
+    assert_allclose(interpolators.compute(0.75).values(), [1.5],
+                    err_msg='value between keypoint 0 and 1')
 
 
 def test_two_joints_linear_segments():
     names = ["foo1", "foo2"]
-    times = [[0.5, 1, 2], [2]]
-    keys = [[[1, [3, 0.4, 0.9], [3, 0.6, 1.1]],
-             [2, [3, 0.9, 1.9], [3, 1.1, 2.1]],
-             [3, [3, 1.9, 2.9], [3, 2.1, 3.1]]],
-            [[5, [3, 0, 5], [3, 2.1, 5.1]]]]
+    times = [[0.5, 1, 2], [1, 2]]
+    keys = [[[1, [3, 0, 0], [3, 0.1, 0.2]],
+             [2, [3, -0.1, -0.2], [3, 0.1, 0.2]],
+             [3, [3, -0.1, -0.2], [3, 0, 0]]],
+            [[2, [3, 0, 0], [3, 1, 3]],
+             [5, [3, -1, -3], [3, 0, 0]]]]
 
-    interpolators = BezierInterpolators(times, keys)
-    # modify initial curvature
-    interpolators.bezier_sections[1, 0, 1] = [2, 0]
+    interpolators = BezierInterpolators((names, times, keys))
 
-    assert_allclose(interpolators.compute(0), [0, 0],
-                    err_msg='implicit 0ths keypoints')
-    assert_allclose(interpolators.compute(1), [2, 2.5],
+    assert_allclose(interpolators.compute(1).values(), [2, 2],
                     err_msg='first on keypoint, second middle of section')
-    assert_allclose(interpolators.compute(2), [3, 5],
+    assert_allclose(interpolators.compute(1.5).values(), [2.5, 3.5])
+    assert_allclose(interpolators.compute(2).values(), [3, 5],
                     err_msg='both on end keypoint')

@@ -2,39 +2,46 @@ import numpy as np
 
 
 class BezierInterpolators:
-    def __init__(self, names, times, keys):
-        self.names = names
+    def __init__(self, choregraph_export):
+        self.names, times, keys = choregraph_export
         maximum_key_count = max(len(k) for k in keys)
 
-        bezier_sections = np.zeros((len(keys), maximum_key_count, 4, 2),
+        bezier_sections = np.zeros((len(keys), maximum_key_count - 1, 4, 2),
                                    dtype=np.float32)
 
-        self.key_count = np.array([len(k) for k in keys]) + 1
+        self.key_count = np.array([len(k) for k in keys])
 
         for i in range(len(keys)):
-            for j in range(len(keys[i])):
-                if j == 0:
-                    # make implicit 0th key explicit
-                    bezier_sections[i, j, 0:2] = [[0, 0], [0.1, 0]]
-                else:
-                    bezier_sections[i, j, 0:2] = [
-                        [times[i][j - 1], keys[i][j - 1][0]],
-                        keys[i][j - 1][2][1:3]]
+            for j in range(len(keys[i]) - 1):
+                # P0 and P4: (time, value) coordinates
+                start_value = keys[i][j][0]
+                end_value = keys[i][j + 1][0]
+                start_time, end_time = times[i][j: j + 2]
 
-                bezier_sections[i, j, 2:] = [keys[i][j][1][1:],
-                                             [times[i][j],
-                                              keys[i][j][0]]]
+                # first handle is P1 and second handle is P2
+                # in the cubic bezier formula
+                # choregraph stores them relative to P0 and P4
+                first_handle = keys[i][j][2][1:3]
+                second_handle = keys[i][j + 1][1][1:3]
 
-        self.times = np.zeros((len(times), maximum_key_count + 1),
-                              dtype=np.float32)
-        # make implicit 0th key explicit
-        self.times[:, 0] = 0
-        for i in range(len(times)):
-            self.times[i, 1:len(times[i]) + 1] = times[i]
+                bezier_sections[i, j] = [
+                    [start_time, start_value],
+                    [first_handle[0] + start_time,
+                     first_handle[1] + start_value],
+                    [second_handle[0] + end_time,
+                     second_handle[1] + end_value],
+                    [end_time, end_value]
+                ]
 
-        self.bezier_sections = bezier_sections
+                self.times = np.zeros((len(times), maximum_key_count),
+                                      dtype=np.float32)
+            for i in range(len(times)):
+                self.times[i, :len(times[i])] = times[i]
+
+            self.bezier_sections = bezier_sections
 
     def compute(self, t):
+        # TODO deal wtih t < start
         finished = np.where(self.times[np.arange(
             len(self.times)), self.key_count - 1] < t)[0]
 
