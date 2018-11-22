@@ -12,7 +12,7 @@
 import pickle
 import numpy as np
 from angle_interpolation import AngleInterpolationAgent
-from keyframes import hello
+from keyframes import *
 
 
 class PostureRecognitionAgent(AngleInterpolationAgent):
@@ -25,26 +25,31 @@ class PostureRecognitionAgent(AngleInterpolationAgent):
                                                       simspark_port, teamname,
                                                       player_id, sync_mode)
         with open('robot_pose.pkl', 'rb') as fp:
-            self.classes, self.posture_classifier = pickle.load(fp)
+            self.posture_classifier = pickle.load(fp)
+        with open('robot_pose_classes.pickle', 'rb') as fp:
+            self.classes = pickle.load(fp)
+
         self.feature_names = ['LHipYawPitch', 'LHipRoll', 'LHipPitch',
                               'LKneePitch', 'RHipYawPitch', 'RHipRoll',
                               'RHipPitch', 'RKneePitch', 'AngleX', 'AngleY']
+        self.postures = []
 
     def think(self, perception):
-        self.posture = self.recognize_posture(perception)
+        self.postures.append(self.recognize_posture(perception))
+        print(self.postures[-1])
         return super(PostureRecognitionAgent, self).think(perception)
 
     def recognize_posture(self, perception):
         feature_vector = np.empty(len(self.feature_names), dtype=np.float32)
-        for i in range(len(self.feature_names - 2)):
+        for i in range(len(self.feature_names) - 2):
             feature_vector[i] = self.perception.joint[self.feature_names[i]]
         feature_vector[-2:] = self.perception.imu
 
         prediction = self.posture_classifier.predict(feature_vector[np.newaxis, :])
-        return self.classes[prediction]
+        return self.classes[np.squeeze(prediction)]
 
 
 if __name__ == '__main__':
     agent = PostureRecognitionAgent()
-    agent.set_keyframes(hello())
+    agent.set_keyframes(leftBellyToStand())
     agent.run()

@@ -49,7 +49,7 @@ class PIDController(object):
         # either there is no delay in simulation, or my implementation of
         # delay is wrong
         delay = 0
-        self.Kp = 37
+        self.Kp = 38
         self.Ki = 0.4
         self.Kd = 0.1
         self.y = deque(np.zeros(size), maxlen=delay + 1)

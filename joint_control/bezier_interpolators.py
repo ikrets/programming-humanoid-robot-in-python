@@ -55,7 +55,8 @@ class BezierInterpolators:
 
         self.bezier_sections = bezier_sections
 
-    def compute(self, t, initial_joints):
+    def compute(self, t, initial_joints, speed_factor=1):
+        t *= speed_factor
         initial_joints = np.array(
             [initial_joints[name] if name in initial_joints else 0 for name in
              self.names])

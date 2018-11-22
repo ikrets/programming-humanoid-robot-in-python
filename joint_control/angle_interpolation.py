@@ -24,7 +24,7 @@ import pickle
 from pid import PIDAgent
 import keyframes
 from bezier_interpolators import BezierInterpolators
-
+from spark_agent import JOINT_CMD_NAMES
 
 class AngleInterpolationAgent(PIDAgent):
     def __init__(self, simspark_ip='localhost',
@@ -37,46 +37,65 @@ class AngleInterpolationAgent(PIDAgent):
                                                       player_id, sync_mode)
         self.interpolators = None
         self.motion_start = None
-        self.start_delay = 5
 
         self.joints_log = []
         self.target_joints_log = []
         self.actions_log = []
 
+        self.still = True
+        self.in_motion = False
+
     def think(self, perception):
+        if self.still:
+            return super(AngleInterpolationAgent, self).think(perception)
+
         target_joints = self.angle_interpolation(perception)
         self.target_joints.update(target_joints)
         self.target_joints_log.append(self.target_joints.copy())
         self.joints_log.append(perception.joint.copy())
 
         result = super(AngleInterpolationAgent, self).think(perception)
-        self.actions_log.append(self.joint_controller.u.copy())
+        self.actions_log.append(
+            dict(zip(JOINT_CMD_NAMES.iterkeys(), self.joint_controller.u)))
 
         return result
 
-    def set_keyframes(self, keyframes):
+    def set_keyframes(self, keyframes, speed_factor=1):
         # convert keyframes to bezier sections
         self.interpolators = BezierInterpolators(keyframes)
+        self.still = False
+        self.in_motion = False
+        self.speed_factor = speed_factor
 
     def angle_interpolation(self, perception):
         assert self.interpolators
 
-        if not self.motion_start:
+        if not self.in_motion:
             self.motion_start = perception.time
+            self.initial_joints = perception.joint.copy()
+            self.in_motion = True
 
-        result = self.interpolators.compute(perception.time - self.motion_start)
+        result = self.interpolators.compute(
+            perception.time - self.motion_start,
+            speed_factor=self.speed_factor,
+            initial_joints=self.initial_joints)
         if not result:
-            exit()
+            with open('logs.pickle', 'wb') as fp:
+                pickle.dump(
+                    (self.joints_log, self.target_joints_log,
+                     self.actions_log), fp)
+
+            self.actions_log = []
+            self.joints_log = []
+            self.target_joints_log = []
+
+            self.still = True
+            self.in_motion = False
+
         return result
 
 
 if __name__ == '__main__':
-    np.seterr(all='raise')
     agent = AngleInterpolationAgent()
     agent.set_keyframes(keyframes.hello())
-    agent.start()
-
-    agent.thread.join()
-    with open('logs.pickle', 'wb') as fp:
-        pickle.dump(
-            (agent.joints_log, agent.target_joints_log, agent.actions_log), fp)
+    agent.run()
