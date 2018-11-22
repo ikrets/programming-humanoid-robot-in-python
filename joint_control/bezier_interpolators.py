@@ -9,6 +9,15 @@ class BezierInterpolators:
         bezier_sections = np.zeros((len(keys), maximum_key_count - 1, 4, 2),
                                    dtype=np.float32)
 
+        # pre section is the section from time 0 to the first keyframe
+        # P2 and P3 of it are known here, P0 and P1 depend on the
+        # initial joint values. They will be calculated in compute
+        self.pre_section = np.empty((len(keys), 4, 2), dtype=np.float32)
+        # initial time is always zero
+        self.pre_section[:, 0] = 0
+        # initial velocity is always zero. 0.1 is arbitrary and could be changed
+        self.pre_section[:, 1] = [0.1, 0]
+
         self.key_count = np.array([len(k) for k in keys])
 
         for i in range(len(keys)):
@@ -33,15 +42,25 @@ class BezierInterpolators:
                     [end_time, end_value]
                 ]
 
-                self.times = np.zeros((len(times), maximum_key_count),
-                                      dtype=np.float32)
-            for i in range(len(times)):
-                self.times[i, :len(times[i])] = times[i]
+                if j == 0:
+                    self.pre_section[i, 2:] = [
+                        [keys[i][0][1][1] + start_time,
+                         keys[i][0][1][2] + start_value],
+                        [times[i][0], keys[i][0][0]]]
 
-            self.bezier_sections = bezier_sections
+        self.times = np.zeros((len(times), maximum_key_count),
+                              dtype=np.float32)
+        for i in range(len(times)):
+            self.times[i, :len(times[i])] = times[i]
 
-    def compute(self, t):
-        # TODO deal wtih t < start
+        self.bezier_sections = bezier_sections
+
+    def compute(self, t, initial_joints):
+        initial_joints = np.array(
+            [initial_joints[name] if name in initial_joints else 0 for name in
+             self.names])
+        in_pre_section = np.where(self.times[:, 0] > t)[0]
+
         finished = np.where(self.times[np.arange(
             len(self.times)), self.key_count - 1] < t)[0]
 
@@ -57,11 +76,18 @@ class BezierInterpolators:
         # get P0, P1, P2, P3
         P = self.bezier_sections[np.arange(len(self.bezier_sections)), sections]
 
+        if len(in_pre_section):
+            concrete_pre_section = self.pre_section[in_pre_section]
+            concrete_pre_section[:, 0:2, 1] += initial_joints[in_pre_section][:,
+                                               np.newaxis]
+            P[in_pre_section] = concrete_pre_section
+
         joint_numbers = np.arange(len(self.times))
         # find out to which i does t correspond
         i = (t - self.times[joint_numbers, sections]) / (
                 self.times[joint_numbers, sections + 1] - self.times[
             joint_numbers, sections])
+        i[in_pre_section] = t / self.times[in_pre_section, 0]
         i = i[:, np.newaxis]
 
         result = np.power(1 - i, 3) * P[:, 0]
