@@ -36,7 +36,8 @@ class PostureRecognitionAgent(AngleInterpolationAgent):
 
     def think(self, perception):
         self.postures.append(self.recognize_posture(perception))
-        print(self.postures[-1])
+        if len(self.postures) > 1 and self.postures[-1] != self.postures[-2]:
+            print(self.postures[-2] + ' -> ' + self.postures[-1])
         return super(PostureRecognitionAgent, self).think(perception)
 
     def recognize_posture(self, perception):

@@ -16,7 +16,7 @@ class BezierInterpolators:
         # initial time is always zero
         self.pre_section[:, 0] = 0
         # initial velocity is always zero. 0.1 is arbitrary and could be changed
-        self.pre_section[:, 1] = [0.1, 0]
+        self.pre_section[:, 1] = [0.5, 0]
 
         self.key_count = np.array([len(k) for k in keys])
 

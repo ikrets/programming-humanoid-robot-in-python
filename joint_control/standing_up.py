@@ -31,8 +31,6 @@ class StandingUpAgent(PostureRecognitionAgent):
             return
 
         posture = self.postures[-1]
-        if posture != self.previous_posture:
-            print(self.previous_posture + ' -> ' + posture)
 
         # Do not stand up from those poses
         if posture in ('Crouch', 'Frog', 'Knee', 'Stand', 'StandInit'):
@@ -42,7 +40,7 @@ class StandingUpAgent(PostureRecognitionAgent):
         if self.trying_to_stand_up_from and self.still == True:
             self.trying_to_stand_up_from = None
 
-        speed_factor = 1
+        speed_factor = 2
 
         if not self.trying_to_stand_up_from:
             if posture == 'Belly':
@@ -92,6 +90,7 @@ class TestStandingUpAgent(StandingUpAgent):
         self.stiffness_on_off_time = 0
         self.stiffness_on_cycle = 100000  # in seconds
         self.stiffness_off_cycle = 1  # in seconds
+        self.executed = "on"
 
     def think(self, perception):
         action = super(TestStandingUpAgent, self).think(perception)
@@ -100,11 +99,17 @@ class TestStandingUpAgent(StandingUpAgent):
             self.stiffness_on_off_time = time_now
 
         if time_now - self.stiffness_on_off_time < self.stiffness_off_cycle:
-            action.stiffness = {j: 0 for j in
-                                self.joint_names}  # turn off joints
+            if self.executed != "off":
+                action.stiffness = {j: 0 for j in
+                                    self.joint_names}  # turn off joints
+                print("Turning joints off")
+                self.executed = "off"
         else:
-            action.stiffness = {j: 10 for j in
-                                self.joint_names}  # turn on joints
+            if self.executed != "on":
+                action.stiffness = {j: 1 for j in
+                                    self.joint_names}  # turn on joints
+                print("Turning joints on")
+                self.executed = "on"
         if time_now - self.stiffness_on_off_time > self.stiffness_on_cycle + self.stiffness_off_cycle:
             self.stiffness_on_off_time = time_now
 

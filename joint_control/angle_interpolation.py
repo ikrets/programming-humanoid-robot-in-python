@@ -26,6 +26,9 @@ import keyframes
 from bezier_interpolators import BezierInterpolators
 from spark_agent import JOINT_CMD_NAMES
 
+from spline_interpolators import SplineInterpolators
+
+
 class AngleInterpolationAgent(PIDAgent):
     def __init__(self, simspark_ip='localhost',
                  simspark_port=3100,
@@ -62,23 +65,22 @@ class AngleInterpolationAgent(PIDAgent):
 
     def set_keyframes(self, keyframes, speed_factor=1):
         # convert keyframes to bezier sections
-        self.interpolators = BezierInterpolators(keyframes)
+        self.keyframes = keyframes
         self.still = False
         self.in_motion = False
         self.speed_factor = speed_factor
 
     def angle_interpolation(self, perception):
-        assert self.interpolators
-
         if not self.in_motion:
             self.motion_start = perception.time
             self.initial_joints = perception.joint.copy()
             self.in_motion = True
+            self.interpolators = SplineInterpolators(self.keyframes,
+                                                     self.initial_joints)
 
         result = self.interpolators.compute(
             perception.time - self.motion_start,
-            speed_factor=self.speed_factor,
-            initial_joints=self.initial_joints)
+            speed_factor=self.speed_factor)
         if not result:
             with open('logs.pickle', 'wb') as fp:
                 pickle.dump(
