@@ -5,6 +5,7 @@
 
 '''
 
+
 from recognize_posture import PostureRecognitionAgent
 from keyframes import *
 import numpy as np
@@ -84,32 +85,18 @@ class TestStandingUpAgent(StandingUpAgent):
                  teamname='DAInamite',
                  player_id=0,
                  sync_mode=True):
-        super(TestStandingUpAgent, self).__init__(simspark_ip, simspark_port,
-                                                  teamname, player_id,
-                                                  sync_mode)
+        super(TestStandingUpAgent, self).__init__(simspark_ip, simspark_port, teamname, player_id, sync_mode)
         self.stiffness_on_off_time = 0
-        self.stiffness_on_cycle = 100000  # in seconds
-        self.stiffness_off_cycle = 1  # in seconds
-        self.executed = "on"
+        self.stiffness_on_cycle = 10  # in seconds
+        self.stiffness_off_cycle = 3  # in seconds
 
     def think(self, perception):
         action = super(TestStandingUpAgent, self).think(perception)
         time_now = perception.time
-        if self.stiffness_on_off_time == 0:
-            self.stiffness_on_off_time = time_now
-
         if time_now - self.stiffness_on_off_time < self.stiffness_off_cycle:
-            if self.executed != "off":
-                action.stiffness = {j: 0 for j in
-                                    self.joint_names}  # turn off joints
-                print("Turning joints off")
-                self.executed = "off"
+            action.stiffness = {j: 0 for j in self.joint_names}  # turn off joints
         else:
-            if self.executed != "on":
-                action.stiffness = {j: 1 for j in
-                                    self.joint_names}  # turn on joints
-                print("Turning joints on")
-                self.executed = "on"
+            action.stiffness = {j: 1 for j in self.joint_names}  # turn on joints
         if time_now - self.stiffness_on_off_time > self.stiffness_on_cycle + self.stiffness_off_cycle:
             self.stiffness_on_off_time = time_now
 
