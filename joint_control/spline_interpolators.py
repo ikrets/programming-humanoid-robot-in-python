@@ -37,7 +37,8 @@ class SplineInterpolators:
                 if (y_2 - y_1) * (y_1 - y_0) < 0:
                     ydot_1 = 0
                 else:
-                    ydot_1 = (y_2 - y_0) / 2
+                    ydot_1 = (y_2 - 2 * y_1 + y_0) / 2 / (
+                                self.times[i, j + 1] - self.times[i, j])
 
                 section_matrix = spline_matrix(self.times[i, j],
                                                self.times[i, j + 1])

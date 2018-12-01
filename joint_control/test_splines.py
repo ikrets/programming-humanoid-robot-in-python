@@ -30,3 +30,13 @@ def test_two_joints_linear_segments():
                     err_msg="first on end, second after end not returned")
     assert_allclose(interpolators.compute(0.75).values(), [1.5, 8],
                     err_msg='first on linear section, second on keypoint')
+
+def test_do_not_overshoot():
+    names = ["foo"]
+    times = [[1, 2]]
+    keys = keys_to_choregraph([[-0.00873, -0.35278]])
+
+    interpolators = SplineInterpolators((names, times, keys), {"foo": 0})
+    first_section_t = np.linspace(0, 1)
+    values = [interpolators.compute(t)['foo'] for t in first_section_t]
+    assert_array_equal(np.asarray(values) <= 0, True)
