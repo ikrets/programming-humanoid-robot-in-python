@@ -41,37 +41,34 @@ class StandingUpAgent(PostureRecognitionAgent):
         if self.trying_to_stand_up_from and self.still == True:
             self.trying_to_stand_up_from = None
 
-        speed_factor = 2
+        speed_factor = 1
 
         if not self.trying_to_stand_up_from:
             if posture == 'Belly':
                 print('Trying to stand up from belly')
-                self.set_keyframes(rightBellyToStand(),
+                self.set_keyframes(leftBellyToStand(),
                                    speed_factor=speed_factor)
 
             if posture == 'Back':
                 print('Trying to stand up from back')
-                self.set_keyframes(rightBackToStand(),
+                self.set_keyframes(leftBackToStand(),
                                    speed_factor=speed_factor)
 
             if posture in ('Left', 'Right'):
-                action = np.random.choice(
-                    [leftBackToStand, rightBackToStand, leftBellyToStand,
-                     rightBellyToStand])
-                self.set_keyframes(action(),
+                self.set_keyframes(leftBellyToStand(),
                                    speed_factor=speed_factor)
 
             self.trying_to_stand_up_from = posture
-        # else:
-        #     if posture == 'Back' and self.trying_to_stand_up_from == 'Belly':
-        #         print('Fell on the back while trying to stand up from belly. Standing up again')
-        #         self.set_keyframes(rightBackToStand())
-        #         self.trying_to_stand_up_from = posture
-        #
-        #     if posture == 'Belly' and self.trying_to_stand_up_from == 'Back':
-        #         print('Fell on the belly while trying to stand up from back. Standing up again')
-        #         self.set_keyframes(rightBellyToStand())
-        #         self.trying_to_stand_up_from = posture
+        else:
+            if posture == 'Back' and self.trying_to_stand_up_from == 'Belly':
+                print('Fell on the back while trying to stand up from belly. Standing up again')
+                self.set_keyframes(leftBackToStand())
+                self.trying_to_stand_up_from = posture
+
+            if posture == 'Belly' and self.trying_to_stand_up_from == 'Back':
+                print('Fell on the belly while trying to stand up from back. Standing up again')
+                self.set_keyframes(leftBellyToStand())
+                self.trying_to_stand_up_from = posture
 
         self.previous_posture = posture
 
@@ -87,7 +84,7 @@ class TestStandingUpAgent(StandingUpAgent):
                  sync_mode=True):
         super(TestStandingUpAgent, self).__init__(simspark_ip, simspark_port, teamname, player_id, sync_mode)
         self.stiffness_on_off_time = 0
-        self.stiffness_on_cycle = 10  # in seconds
+        self.stiffness_on_cycle = 10 # in seconds
         self.stiffness_off_cycle = 3  # in seconds
 
     def think(self, perception):
