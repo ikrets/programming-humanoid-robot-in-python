@@ -22,7 +22,7 @@ def test_transform():
                      [0, 0, 0, 1]], atol=1e-6)
 
 
-def test_plane_chain():
+def test_plane_xonly_chain():
     chain = KinematicChain()
     chain.append('link1', [1, 0, 0], lambda q: [0, 0, q])
     chain.append('link2', [2, 0, 0], lambda q: [0, 0, q])
@@ -38,3 +38,47 @@ def test_plane_chain():
     transforms = chain.calculate_transforms({'link1': pi / 2, 'link2': -pi / 2})
     assert_allclose(translation_part(transforms['link1']), [0, 1, 0], atol=atol)
     assert_allclose(translation_part(transforms['link2']), [2, 1, 0], atol=atol)
+
+    transforms = chain.calculate_transforms({'link1': pi / 4, 'link2': pi / 6})
+    assert_allclose(translation_part(transforms['link1']),
+                    [0.7071067811865, 0.7071067811865, 0], atol=atol)
+    assert_allclose(translation_part(transforms['link2']),
+                    [1.2247448713916, 2.6389584337647, 0], atol=atol)
+
+    transforms = chain.calculate_transforms(
+        {'link1': -pi / 3, 'link2': -pi / 12})
+    assert_allclose(translation_part(transforms['link1']),
+                    [0.5, -0.8660254037844, 0], atol=atol)
+    assert_allclose(translation_part(transforms['link2']),
+                    [1.017638090205, -2.7978770563626, 0], atol=atol)
+
+
+def test_plane_xy_chain():
+    chain = KinematicChain()
+    chain.append('link1', [1, 2, 0], lambda q: [0, 0, q])
+    chain.append('link2', [3, -0.5, 0], lambda q: [0, 0, q])
+
+    transforms = chain.calculate_transforms({'link1': 0, 'link2': 0})
+    assert_allclose(translation_part(transforms['link1']), [1, 2, 0])
+    assert_allclose(translation_part(transforms['link2']), [4, 1.5, 0])
+
+    transforms = chain.calculate_transforms({'link1': -pi / 6, 'link2': pi / 3})
+    assert_allclose(translation_part(transforms['link1']),
+                    [1.8660254037844, 1.2320508075689, 0])
+    assert_allclose(translation_part(transforms['link2']),
+                    [4.7141016151378, 2.2990381056767, 0])
+
+
+def test_3d_chain():
+    chain = KinematicChain()
+    chain.append('link1', [2, 0, 0], lambda q: [0, q, 0])
+    chain.append('link2', [0, 0, 4], lambda q: [q, 0, 0])
+
+    transforms = chain.calculate_transforms({'link1': 0, 'link2': 0})
+    assert_allclose(translation_part(transforms['link1']), [2, 0, 0])
+    assert_allclose(translation_part(transforms['link2']), [2, 0, 4])
+
+    transforms = chain.calculate_transforms({'link1': -pi / 6, 'link2': pi / 3})
+    assert_allclose(translation_part(transforms['link1']), [1.7320508076, 0, 1])
+    assert_allclose(translation_part(transforms['link2']),
+                    [0.7320508076, -3.4641016151, 2.7320508076])
