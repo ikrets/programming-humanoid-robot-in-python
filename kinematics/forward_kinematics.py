@@ -69,11 +69,11 @@ class ForwardKinematicsAgent(AngleInterpolationAgent):
 
         def flip_l_to_r(link):
             return Link(name='R' + link.name[1:],
-                        translation=link.translation * [0, -1, 0],
+                        translation=link.translation * [1, -1, 1],
                         q_to_roll_pitch_yaw=link.q_to_roll_pitch_yaw)
 
         self.chains['RArm'] = self.chains['LArm'].transform(flip_l_to_r)
-        self.chains['RLeg'] = self.chains['LArm'].transform(flip_l_to_r)
+        self.chains['RLeg'] = self.chains['LLeg'].transform(flip_l_to_r)
 
     def think(self, perception):
         self.forward_kinematics(perception.joint)

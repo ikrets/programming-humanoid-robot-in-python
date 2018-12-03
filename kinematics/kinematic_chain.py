@@ -26,7 +26,7 @@ def transform(translation, roll_pitch_yaw):
 
     tf = np.array(np.zeros((4, 4), dtype=np.float32))
     tf[:3, :3] = rotation
-    tf[:3, 3] = rotation.dot(np.asarray(translation))
+    tf[:3, 3] = np.asarray(translation)
     tf[3, 3] = 1
 
     return tf
