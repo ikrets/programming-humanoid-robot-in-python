@@ -34,7 +34,9 @@ class SplineInterpolators:
                     y_2 = keys[i][j + 1][0]
 
                 ydot_0 = 0 if j == 0 else ydot_1
-                if (y_2 - y_1) * (y_1 - y_0) < 0:
+                if j == len(keys[i]) - 1:
+                    ydot_1 = 0
+                elif (y_2 - y_1) * (y_1 - y_0) < 0:
                     ydot_1 = 0
                 else:
                     ydot_1 = (y_2 - 2 * y_1 + y_0) / 2 / (

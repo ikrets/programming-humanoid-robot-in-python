@@ -9,9 +9,10 @@
        and test your inverse kinematics implementation.
 '''
 
-
 from forward_kinematics import ForwardKinematicsAgent
-from numpy.matlib import identity
+from numeric_solve import numeric_solve
+import numpy as np
+from scipy.optimize import minimize
 
 
 class InverseKinematicsAgent(ForwardKinematicsAgent):
@@ -22,21 +23,33 @@ class InverseKinematicsAgent(ForwardKinematicsAgent):
         :param transform: 4x4 transform matrix
         :return: list of joint angles
         '''
-        joint_angles = []
-        # YOUR CODE HERE
-        return joint_angles
+
+        names, solution = numeric_solve(self.chains[effector_name], transform)
+        solution %= 2 * np.pi
+        solution[solution < -np.pi] += 2 * np.pi
+        solution[solution > np.pi] -= 2 * np.pi
+
+        return names, solution
 
     def set_transforms(self, effector_name, transform):
         '''solve the inverse kinematics and control joints use the results
         '''
         # YOUR CODE HERE
-        self.keyframes = ([], [], [])  # the result joint angles have to fill in
+        names, target_joints = self.inverse_kinematics(effector_name, transform)
+
+        self.set_keyframes((names,
+                            np.ones((len(names), 1)) * 3,
+                            # to mimic choregraph format
+                            target_joints[:, np.newaxis, np.newaxis]
+                            ))
+
 
 if __name__ == '__main__':
     agent = InverseKinematicsAgent()
     # test inverse kinematics
-    T = identity(4)
-    T[-1, 1] = 0.05
-    T[-1, 2] = 0.26
+    T = np.eye(4)
+    T[0, 3] = 30
+    T[1, 3] = 70
+    T[2, 3] = -240
     agent.set_transforms('LLeg', T)
     agent.run()
